@@ -1,0 +1,111 @@
+# 项目名称
+[package]
+# 项目名称：signature_relay（签名中转服务）
+name = "signature_relay"
+# 项目版本号
+version = "0.1.0"
+# Rust版本：使用2024版本以获得最新的语言特性和性能优化
+edition = "2024"
+
+# 项目依赖配置
+[dependencies]
+# Axum：异步Web框架，轻量级高性能，适合低资源服务器
+# 用于构建HTTP API服务，处理签名和验签请求
+# 版本：0.8.9（截至2026年6月最新稳定版）
+axum = { version = "0.8.9", features = ["json"] }
+
+# Tokio：异步运行时，Axum的底层依赖
+# full特性包含所有功能，multi-thread多线程调度器支持高并发
+# 版本：1.52.3（截至2026年6月最新稳定版）
+tokio = { version = "1.52.3", features = ["full"] }
+
+# Serde：序列化/反序列化框架
+# 用于JSON数据的解析和生成
+# 版本：1.0.228（截至2026年6月最新稳定版）
+serde = { version = "1.0.228", features = ["derive"] }
+
+# Serde JSON：JSON序列化具体实现
+# 版本：1.0.150（截至2026年6月最新稳定版）
+serde_json = "1.0.150"
+
+# Dotenvy：.env环境变量加载库
+# 用于从.env文件读取配置（RSA公钥等敏感信息）
+# 版本：0.15.7
+dotenvy = "0.15.7"
+
+# RSA：RSA加密算法实现
+# 用于签名生成（公钥加密）和验签（公钥解密）
+# 版本：0.9.10（稳定版本，支持pem格式公钥）
+rsa = { version = "0.9.10", features = ["pem"] }
+
+# SHA2：SHA256哈希算法实现
+# 签名流程中需要对参数拼接字符串进行SHA256哈希
+# 版本：0.11.0（截至2026年6月最新稳定版）
+sha2 = "0.11.0"
+
+# Base64：Base64编解码
+# RSA公钥和签名结果都是Base64编码格式
+# 版本：0.22.1（截至2026年6月最新稳定版）
+base64 = "0.22.1"
+
+# Tracing：日志追踪框架
+# 用于记录服务运行日志，便于调试和监控
+tracing = "0.1"
+
+# Tracing Subscriber：日志订阅者
+# 将日志输出到标准输出
+tracing-subscriber = "0.3"
+
+# Tower HTTP：HTTP中间件
+# 用于CORS跨域支持、请求限制等
+# 版本：0.6.11（截至2026年6月最新稳定版）
+tower-http = { version = "0.6.11", features = ["cors", "limit"] }
+
+# Thiserror：错误处理宏
+# 简化自定义错误类型的定义
+thiserror = "2"
+
+# Anyhow：错误处理库
+# 提供灵活的错误处理能力
+anyhow = "1"
+
+# Rand：随机数生成库
+# RSA加密需要随机数生成器
+rand = "0.8"
+
+# Hex：十六进制编解码库
+# 用于调试时输出哈希值的十六进制格式
+hex = "0.4"
+
+# Rusqlite：SQLite数据库封装
+# 嵌入式数据库，无需额外运行环境
+# bundled特性：自动编译SQLite，无需依赖系统SQLite
+# 版本：0.40.0（截至2026年6月最新稳定版）
+rusqlite = { version = "0.40.0", features = ["bundled"] }
+
+# Chrono：日期时间库
+# 用于记录请求时间戳
+chrono = "0.4"
+
+# Tera：模板引擎
+# 用于渲染HTML模板
+# 版本：1.20.0（截至2026年6月最新稳定版）
+tera = "1.20"
+
+# Rust Embed：将文件嵌入到二进制中
+# 在编译时将HTML模板文件嵌入到二进制文件中
+# 版本：8.11.0（截至2026年6月最新稳定版）
+rust-embed = "8.11"
+
+# 生产环境优化配置
+[profile.release]
+# opt-level=3：最高级别优化，生成最高性能的代码
+opt-level = 3
+# lto=true：链接时优化，进一步减小二进制体积和提升性能
+lto = true
+# codegen-units=1：单代码生成单元，优化更彻底
+codegen-units = 1
+# panic=abort：panic时直接终止，减小二进制体积
+panic = "abort"
+# strip=true：移除符号信息，减小二进制体积
+strip = true
