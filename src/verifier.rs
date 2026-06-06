@@ -28,6 +28,9 @@ use rsa::pkcs8::DecodePublicKey;
 // 引入Base64编解码
 use base64::{engine::general_purpose::STANDARD, Engine};
 
+// 引入serde_json的Value类型
+use serde_json::Value;
+
 // 引入自定义错误类型
 use crate::error::SignError;
 
@@ -108,14 +111,14 @@ impl Verifier {
     ///
     /// # 参数
     ///
-    /// * `params` - 包含sign的参数键值对
+    /// * `params` - 包含sign的参数键值对（值支持任意JSON类型）
     ///
     /// # 返回值
     ///
     /// 返回Result类型：
     /// - Ok(bool)：验签成功，返回true表示签名有效，false表示签名无效
     /// - Err(SignError)：验签过程出错
-    pub fn verify(&self, params: &BTreeMap<String, String>) -> Result<bool, SignError> {
+    pub fn verify(&self, params: &BTreeMap<String, Value>) -> Result<bool, SignError> {
         // ==================== 步骤1：移除sign参数 ====================
         // 从参数中获取sign值
         let sign = params
@@ -123,8 +126,14 @@ impl Verifier {
             // 如果sign参数不存在，返回错误
             .ok_or_else(|| SignError::missing_param("sign"))?;
 
+        // 获取sign字符串值
+        let sign_str = match sign {
+            Value::String(s) => s.clone(),
+            _ => return Err(SignError::missing_param("sign")),
+        };
+
         // 如果sign为空，返回错误
-        if sign.is_empty() {
+        if sign_str.is_empty() {
             return Err(SignError::missing_param("sign"));
         }
 
@@ -152,7 +161,7 @@ impl Verifier {
 
         // ==================== 步骤5：Base64解码 ====================
         // 对sign进行Base64解码
-        let encrypted_hash = base64_decode(sign)?;
+        let encrypted_hash = base64_decode(&sign_str)?;
 
         // ==================== 步骤6：RSA公钥解密 ====================
         // 使用RSA公钥对解码后的数据进行解密
@@ -179,7 +188,7 @@ impl Verifier {
     /// # 返回值
     ///
     /// 返回排序后拼接的字符串
-    pub fn get_verify_string(params: &BTreeMap<String, String>) -> Result<String, SignError> {
+    pub fn get_verify_string(params: &BTreeMap<String, Value>) -> Result<String, SignError> {
         // 创建不包含sign的新参数集合
         let mut params_without_sign = BTreeMap::new();
         for (key, value) in params.iter() {
@@ -208,7 +217,7 @@ impl Verifier {
 /// 返回Result类型：
 /// - Ok(String)：拼接成功
 /// - Err(SignError)：拼接失败
-fn concat_params(params: &BTreeMap<String, String>) -> Result<String, SignError> {
+fn concat_params(params: &BTreeMap<String, Value>) -> Result<String, SignError> {
     // 创建String向量，用于存储每个键值对
     let mut pairs = Vec::new();
 
@@ -220,13 +229,29 @@ fn concat_params(params: &BTreeMap<String, String>) -> Result<String, SignError>
             continue;
         }
 
-        // 注意：根据官方文档，null值不参与拼接，但空字符串需要拼接
-        // 由于Rust的String不可能是null，我们只处理空字符串的情况
-        // 空字符串需要参与拼接，所以不跳过
-        // 这与官方文档完全一致："null值不参与拼接，空字符串需要拼接"
+        // 处理不同类型的值
+        // 根据官方文档：
+        // - null值不参与拼接
+        // - 空字符串需要拼接
+        // - value为JSON对象时，转为JSON字符串再拼接
+        let value_str = match value {
+            // null值不参与拼接
+            Value::Null => continue,
+            // 字符串类型，直接使用
+            Value::String(s) => s.clone(),
+            // 数字类型，转为字符串
+            Value::Number(n) => n.to_string(),
+            // 布尔类型，转为字符串
+            Value::Bool(b) => b.to_string(),
+            // JSON对象或数组，转为JSON字符串
+            Value::Object(_) | Value::Array(_) => {
+                serde_json::to_string(value)
+                    .map_err(|e| SignError::JsonParseError(e.to_string()))?
+            }
+        };
 
         // 将键值对格式化为"key=value"形式
-        pairs.push(format!("{}={}", key, value));
+        pairs.push(format!("{}={}", key, value_str));
     }
 
     // 使用"&"连接所有键值对
